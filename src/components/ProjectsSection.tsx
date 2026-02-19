@@ -142,13 +142,14 @@ const ProjectCard = ({
   // Each card occupies 1/total of the scroll range
   const segmentSize = 1 / total;
 
-  // Slide-in: card arrives during the first ~30% of its own segment
-  const slideInStart = index === 0 ? 0 : index * segmentSize;
-  const slideInEnd = index === 0 ? 0 : index * segmentSize + segmentSize * 0.3;
+  // Slide-in: next card only starts entering 55% into its own segment,
+  // giving the previous card full visibility first
+  const slideInStart = index === 0 ? 0 : index * segmentSize + segmentSize * 0.55;
+  const slideInEnd   = index === 0 ? 0 : index * segmentSize + segmentSize * 0.9;
 
-  // Stack-down: starts only AFTER the NEXT card is fully settled (~30% into next segment)
-  const stackStart = (index + 1) * segmentSize + segmentSize * 0.3;
-  const stackEnd = Math.min(1, (index + 1) * segmentSize + segmentSize * 0.6);
+  // Stack-down: current card starts scaling only when the NEXT card begins sliding in
+  const stackStart = (index + 1) * segmentSize + segmentSize * 0.55;
+  const stackEnd   = Math.min(1, (index + 1) * segmentSize + segmentSize * 0.9);
 
   // Slide up from below
   const y = useTransform(
