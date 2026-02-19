@@ -56,7 +56,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        {/* Backdrop */}
         <motion.div
           className="absolute inset-0 bg-background/80 backdrop-blur-lg"
           onClick={onClose}
@@ -65,7 +64,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
           exit={{ opacity: 0 }}
         />
 
-        {/* Modal panel */}
         <motion.div
           className="relative w-full max-w-3xl bg-card border border-border rounded-2xl overflow-hidden"
           initial={{ opacity: 0, y: 60, scale: 0.96 }}
@@ -73,17 +71,13 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
           exit={{ opacity: 0, y: 40, scale: 0.97 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Color accent top bar */}
           <div className="h-px w-full" style={{ background: project.color }} />
-
-          {/* Glow */}
           <div
             className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none opacity-10 blur-3xl"
             style={{ background: project.color }}
           />
 
           <div className="p-8 md:p-12 relative">
-            {/* Close */}
             <button
               onClick={onClose}
               className="absolute top-6 right-6 w-9 h-9 flex items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-300"
@@ -91,7 +85,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
               <X className="w-4 h-4" />
             </button>
 
-            {/* Header */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-4">
                 <span
@@ -110,7 +103,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
               </p>
             </div>
 
-            {/* Tags */}
             <div className="flex flex-wrap gap-2 mb-10">
               {project.tags.map((tag) => (
                 <span
@@ -122,17 +114,13 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
               ))}
             </div>
 
-            {/* CTA */}
             <div className="flex items-center gap-4">
               <a
                 href={project.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center gap-2.5 font-display text-sm tracking-[0.2em] uppercase px-7 py-3.5 rounded-full transition-all duration-300"
-                style={{
-                  background: project.color,
-                  color: 'hsl(0 0% 100%)',
-                }}
+                style={{ background: project.color, color: 'hsl(0 0% 100%)' }}
               >
                 Live Demo
                 <ExternalLink className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -146,6 +134,173 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
   );
 };
 
+// Individual card that tracks its own scroll-driven stack transform
+const ProjectCard = ({
+  project,
+  index,
+  total,
+  containerRef,
+  onSelect,
+}: {
+  project: Project;
+  index: number;
+  total: number;
+  containerRef: React.RefObject<HTMLDivElement>;
+  onSelect: (p: Project) => void;
+}) => {
+  const cardStart = index / total;
+  const cardEnd = (index + 1) / total;
+  const stackStart = (index + 1) / total;
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start start', 'end end'],
+  });
+
+  // Card slides up from bottom as its scroll window begins
+  const y = useTransform(
+    scrollYProgress,
+    [Math.max(0, cardStart - 0.05), cardStart, cardEnd],
+    ['100%', '0%', '0%']
+  );
+
+  // Once the NEXT card arrives, this card scales down and moves up slightly (stacking feel)
+  const scale = useTransform(
+    scrollYProgress,
+    [stackStart, Math.min(1, stackStart + 0.15)],
+    [1, 0.94 - index * 0.015]
+  );
+
+  const yStack = useTransform(
+    scrollYProgress,
+    [stackStart, Math.min(1, stackStart + 0.15)],
+    ['0%', `-${(index + 1) * 2.5}%`]
+  );
+
+  const borderOpacity = useTransform(
+    scrollYProgress,
+    [cardStart, cardStart + 0.05],
+    [0, 1]
+  );
+
+  return (
+    <motion.div
+      className="absolute inset-0 w-full h-full flex items-center justify-center px-6 md:px-16 lg:px-28"
+      style={{ y, zIndex: index + 1 }}
+    >
+      <motion.div
+        className="relative w-full max-w-6xl"
+        style={{ scale, y: yStack }}
+        transition={{ type: 'spring', stiffness: 80, damping: 20 }}
+      >
+        {/* Ghost number */}
+        <span
+          className="font-display font-bold absolute -top-20 md:-top-32 left-0 opacity-[0.03] leading-none select-none pointer-events-none"
+          style={{ color: project.color, fontSize: 'clamp(8rem, 20vw, 18rem)' }}
+        >
+          {String(index + 1).padStart(2, '0')}
+        </span>
+
+        {/* Project card surface */}
+        <motion.div
+          className="w-full rounded-2xl overflow-hidden relative group cursor-pointer border border-border/40"
+          style={{
+            aspectRatio: '16/9',
+            background: `linear-gradient(135deg, hsl(240 8% 12%), hsl(240 8% 8%))`,
+            borderColor: `${project.color}30`,
+          }}
+          onClick={() => onSelect(project)}
+          whileHover={{ scale: 1.012 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Color glow */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(ellipse at 35% 50%, ${project.color}, transparent 65%)`,
+              opacity: 0.15,
+            }}
+            whileHover={{ opacity: 0.35 }}
+            transition={{ duration: 0.6 }}
+          />
+
+          {/* Ambient corner glow */}
+          <div
+            className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-[0.07] blur-3xl pointer-events-none"
+            style={{ background: project.color }}
+          />
+
+          {/* Center title watermark */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span
+              className="font-display font-bold opacity-[0.06] select-none"
+              style={{ color: project.color, fontSize: 'clamp(4rem, 12vw, 10rem)' }}
+            >
+              {project.title}
+            </span>
+          </div>
+
+          {/* Hover overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <span className="font-display text-base tracking-[0.4em] uppercase text-primary border border-primary/30 px-8 py-3">
+              View Details
+            </span>
+            <span className="font-body text-xs text-muted-foreground tracking-widest">Click to explore</span>
+          </div>
+
+          {/* Category tag */}
+          <div className="absolute top-6 left-6">
+            <span
+              className="font-body text-xs tracking-[0.3em] uppercase px-3 py-1.5 rounded-full border"
+              style={{ color: project.color, borderColor: `${project.color}40`, background: `${project.color}10` }}
+            >
+              {project.category}
+            </span>
+          </div>
+
+          {/* Year */}
+          <div className="absolute top-6 right-6">
+            <span className="font-display text-sm text-muted-foreground">{project.year}</span>
+          </div>
+
+          {/* Arrow icon on hover */}
+          <div className="absolute bottom-6 right-6 w-10 h-10 rounded-full border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-background/60 backdrop-blur-sm">
+            <ArrowUpRight className="w-4 h-4 text-primary" />
+          </div>
+        </motion.div>
+
+        {/* Project info row */}
+        <div className="flex items-end justify-between gap-8 mt-8">
+          <div>
+            <h3
+              className="font-display font-bold text-foreground mb-3 leading-none cursor-pointer hover:opacity-70 transition-opacity duration-300"
+              style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
+              onClick={() => onSelect(project)}
+            >
+              {project.title}
+            </h3>
+            <p className="font-body text-muted-foreground leading-relaxed max-w-xl" style={{ fontSize: 'clamp(0.85rem, 1.2vw, 1rem)' }}>
+              {project.description}
+            </p>
+          </div>
+
+          <div className="flex-shrink-0 text-right">
+            <span
+              className="font-display font-bold opacity-20 leading-none"
+              style={{ color: project.color, fontSize: 'clamp(3rem, 6vw, 5rem)' }}
+            >
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="font-display text-muted-foreground block text-xs tracking-widest opacity-50">
+              / {String(total).padStart(2, '0')}
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const ProjectsSection = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -155,16 +310,19 @@ const ProjectsSection = () => {
     offset: ['start start', 'end end'],
   });
 
-  const x = useTransform(scrollYProgress, [0, 1], ['0%', `-${(projects.length - 1) * 100}%`]);
-
   return (
     <>
-      <section id="projects" ref={containerRef} className="relative" style={{ height: `${projects.length * 100}vh` }}>
+      <section
+        id="projects"
+        ref={containerRef}
+        className="relative"
+        style={{ height: `${projects.length * 100}vh` }}
+      >
         <div className="sticky top-0 h-screen overflow-hidden">
 
           {/* Section label */}
           <motion.div
-            className="absolute top-12 left-6 md:left-12 lg:left-24 z-10 flex items-center gap-6"
+            className="absolute top-12 left-6 md:left-12 lg:left-24 z-20 flex items-center gap-6"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -177,7 +335,7 @@ const ProjectsSection = () => {
 
           {/* Counter */}
           <motion.div
-            className="absolute top-12 right-6 md:right-12 lg:right-24 z-10"
+            className="absolute top-12 right-6 md:right-12 lg:right-24 z-20"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -187,124 +345,22 @@ const ProjectsSection = () => {
             </span>
           </motion.div>
 
-          {/* Horizontal scroll container */}
-          <motion.div className="flex h-full" style={{ x }}>
+          {/* Stacked cards */}
+          <div className="absolute inset-0">
             {projects.map((project, i) => (
-              <div
+              <ProjectCard
                 key={i}
-                className="flex-shrink-0 w-screen h-full flex items-center justify-center px-8 md:px-20 lg:px-32"
-              >
-                <motion.div
-                  className="relative w-full max-w-6xl"
-                  initial={{ opacity: 0, y: 60 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  {/* Large ghost number */}
-                  <span
-                    className="font-display font-bold absolute -top-20 md:-top-32 left-0 opacity-[0.03] leading-none select-none pointer-events-none"
-                    style={{ color: project.color, fontSize: 'clamp(8rem, 20vw, 18rem)' }}
-                  >
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-
-                  {/* Clickable project image */}
-                  <motion.div
-                    className="w-full rounded-xl mb-10 overflow-hidden relative group cursor-pointer"
-                    style={{
-                      aspectRatio: '16/9',
-                      background: `linear-gradient(135deg, hsl(240 8% 12%), hsl(240 8% 8%))`,
-                    }}
-                    onClick={() => setSelectedProject(project)}
-                    whileHover={{ scale: 1.01 }}
-                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {/* Color glow */}
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{
-                        background: `radial-gradient(ellipse at 35% 50%, ${project.color}, transparent 65%)`,
-                        opacity: 0.15,
-                      }}
-                      whileHover={{ opacity: 0.35 }}
-                      transition={{ duration: 0.6 }}
-                    />
-
-                    {/* Center title watermark */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span
-                        className="font-display font-bold opacity-[0.06] select-none"
-                        style={{ color: project.color, fontSize: 'clamp(4rem, 12vw, 10rem)' }}
-                      >
-                        {project.title}
-                      </span>
-                    </div>
-
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                      <span className="font-display text-base tracking-[0.4em] uppercase text-primary border border-primary/30 px-8 py-3">
-                        View Details
-                      </span>
-                      <span className="font-body text-xs text-muted-foreground tracking-widest">Click to explore</span>
-                    </div>
-
-                    {/* Top-left category tag */}
-                    <div className="absolute top-6 left-6">
-                      <span
-                        className="font-body text-xs tracking-[0.3em] uppercase px-3 py-1.5 rounded-full border"
-                        style={{ color: project.color, borderColor: `${project.color}40`, background: `${project.color}10` }}
-                      >
-                        {project.category}
-                      </span>
-                    </div>
-
-                    {/* Year */}
-                    <div className="absolute top-6 right-6">
-                      <span className="font-display text-sm text-muted-foreground">{project.year}</span>
-                    </div>
-
-                    {/* Arrow icon */}
-                    <div className="absolute bottom-6 right-6 w-10 h-10 rounded-full border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-background/60 backdrop-blur-sm">
-                      <ArrowUpRight className="w-4 h-4 text-primary" />
-                    </div>
-                  </motion.div>
-
-                  {/* Project info row */}
-                  <div className="flex items-end justify-between gap-8">
-                    <div>
-                      <h3
-                        className="font-display font-bold text-foreground mb-3 leading-none cursor-pointer hover:opacity-70 transition-opacity duration-300"
-                        style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
-                        onClick={() => setSelectedProject(project)}
-                      >
-                        {project.title}
-                      </h3>
-                      <p className="font-body text-muted-foreground leading-relaxed max-w-xl" style={{ fontSize: 'clamp(0.85rem, 1.2vw, 1rem)' }}>
-                        {project.description}
-                      </p>
-                    </div>
-
-                    {/* Index indicator */}
-                    <div className="flex-shrink-0 text-right">
-                      <span
-                        className="font-display font-bold opacity-20 leading-none"
-                        style={{ color: project.color, fontSize: 'clamp(3rem, 6vw, 5rem)' }}
-                      >
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <span className="font-display text-muted-foreground block text-xs tracking-widest opacity-50">
-                        / {String(projects.length).padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
+                project={project}
+                index={i}
+                total={projects.length}
+                containerRef={containerRef}
+                onSelect={setSelectedProject}
+              />
             ))}
-          </motion.div>
+          </div>
 
           {/* Progress bar */}
-          <div className="absolute bottom-10 left-6 md:left-12 lg:left-24 right-6 md:right-12 lg:right-24">
+          <div className="absolute bottom-10 left-6 md:left-12 lg:left-24 right-6 md:right-12 lg:right-24 z-20">
             <div className="h-px bg-border">
               <motion.div
                 className="h-full bg-primary"
@@ -315,7 +371,6 @@ const ProjectsSection = () => {
         </div>
       </section>
 
-      {/* Project detail modal */}
       <AnimatePresence>
         {selectedProject && (
           <ProjectModal project={selectedProject} onClose={() => setSelectedProject(null)} />
