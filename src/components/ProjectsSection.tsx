@@ -63,7 +63,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         />
-
         <motion.div
           className="relative w-full max-w-3xl bg-card border border-border rounded-2xl overflow-hidden"
           initial={{ opacity: 0, y: 60, scale: 0.96 }}
@@ -72,11 +71,7 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="h-px w-full" style={{ background: project.color }} />
-          <div
-            className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none opacity-10 blur-3xl"
-            style={{ background: project.color }}
-          />
-
+          <div className="absolute top-0 left-0 w-80 h-80 rounded-full pointer-events-none opacity-10 blur-3xl" style={{ background: project.color }} />
           <div className="p-8 md:p-12 relative">
             <button
               onClick={onClose}
@@ -84,7 +79,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
             >
               <X className="w-4 h-4" />
             </button>
-
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-4">
                 <span
@@ -98,22 +92,15 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
               <h2 className="font-display font-bold text-foreground leading-none mb-4" style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)' }}>
                 {project.title}
               </h2>
-              <p className="font-body text-muted-foreground leading-relaxed text-base">
-                {project.fullDescription}
-              </p>
+              <p className="font-body text-muted-foreground leading-relaxed text-base">{project.fullDescription}</p>
             </div>
-
             <div className="flex flex-wrap gap-2 mb-10">
               {project.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="font-body text-xs tracking-wide px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground border border-border"
-                >
+                <span key={tag} className="font-body text-xs tracking-wide px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground border border-border">
                   {tag}
                 </span>
               ))}
             </div>
-
             <div className="flex items-center gap-4">
               <a
                 href={project.liveUrl}
@@ -134,7 +121,6 @@ const ProjectModal = ({ project, onClose }: { project: Project; onClose: () => v
   );
 };
 
-// Individual card that tracks its own scroll-driven stack transform
 const ProjectCard = ({
   project,
   index,
@@ -148,154 +134,160 @@ const ProjectCard = ({
   containerRef: React.RefObject<HTMLDivElement>;
   onSelect: (p: Project) => void;
 }) => {
-  const cardStart = index / total;
-  const cardEnd = (index + 1) / total;
-  const stackStart = (index + 1) / total;
-
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end'],
   });
 
-  // Card slides up from bottom as its scroll window begins
+  // Each card occupies 1/total of the scroll range
+  const segmentSize = 1 / total;
+
+  // Slide-in: card arrives during the first ~30% of its own segment
+  const slideInStart = index === 0 ? 0 : index * segmentSize;
+  const slideInEnd = index === 0 ? 0 : index * segmentSize + segmentSize * 0.3;
+
+  // Stack-down: starts only AFTER the NEXT card is fully settled (~30% into next segment)
+  const stackStart = (index + 1) * segmentSize + segmentSize * 0.3;
+  const stackEnd = Math.min(1, (index + 1) * segmentSize + segmentSize * 0.6);
+
+  // Slide up from below
   const y = useTransform(
     scrollYProgress,
-    [Math.max(0, cardStart - 0.05), cardStart, cardEnd],
-    ['100%', '0%', '0%']
+    index === 0 ? [0, 0] : [slideInStart, slideInEnd],
+    index === 0 ? ['0%', '0%'] : ['105%', '0%']
   );
 
-  // Once the NEXT card arrives, this card scales down and moves up slightly (stacking feel)
+  // Scale down into deck after next card settles
   const scale = useTransform(
     scrollYProgress,
-    [stackStart, Math.min(1, stackStart + 0.15)],
-    [1, 0.94 - index * 0.015]
+    index < total - 1 ? [stackStart, stackEnd] : [1, 1],
+    index < total - 1 ? [1, 0.92 - index * 0.02] : [1, 1]
   );
 
+  // Drift upward slightly as it stacks
   const yStack = useTransform(
     scrollYProgress,
-    [stackStart, Math.min(1, stackStart + 0.15)],
-    ['0%', `-${(index + 1) * 2.5}%`]
+    index < total - 1 ? [stackStart, stackEnd] : [1, 1],
+    index < total - 1 ? ['0%', `-${(index + 1) * 3}%`] : ['0%', '0%']
   );
 
-  const borderOpacity = useTransform(
+  // Fade slightly as deeper in stack
+  const opacity = useTransform(
     scrollYProgress,
-    [cardStart, cardStart + 0.05],
-    [0, 1]
+    index < total - 1 ? [stackStart, stackEnd] : [1, 1],
+    index < total - 1 ? [1, 0.75] : [1, 1]
   );
 
   return (
     <motion.div
-      className="absolute inset-0 w-full h-full flex items-center justify-center px-6 md:px-16 lg:px-28"
+      className="absolute inset-0 flex items-center justify-center px-6 md:px-14 lg:px-24"
       style={{ y, zIndex: index + 1 }}
     >
       <motion.div
         className="relative w-full max-w-6xl"
-        style={{ scale, y: yStack }}
-        transition={{ type: 'spring', stiffness: 80, damping: 20 }}
+        style={{ scale, y: yStack, opacity }}
       >
-        {/* Ghost number */}
+        {/* Ghost index number */}
         <span
-          className="font-display font-bold absolute -top-20 md:-top-32 left-0 opacity-[0.03] leading-none select-none pointer-events-none"
-          style={{ color: project.color, fontSize: 'clamp(8rem, 20vw, 18rem)' }}
+          className="font-display font-bold absolute -top-16 md:-top-28 left-0 opacity-[0.04] leading-none select-none pointer-events-none"
+          style={{ color: project.color, fontSize: 'clamp(6rem, 16vw, 14rem)' }}
         >
           {String(index + 1).padStart(2, '0')}
         </span>
 
-        {/* Project card surface */}
+        {/* Card — all content lives inside */}
         <motion.div
-          className="w-full rounded-2xl overflow-hidden relative group cursor-pointer border border-border/40"
+          className="w-full rounded-2xl overflow-hidden relative group cursor-pointer"
           style={{
             aspectRatio: '16/9',
             background: `linear-gradient(135deg, hsl(240 8% 12%), hsl(240 8% 8%))`,
-            borderColor: `${project.color}30`,
+            border: `1px solid ${project.color}28`,
           }}
           onClick={() => onSelect(project)}
           whileHover={{ scale: 1.012 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Color glow */}
+          {/* Ambient color glow */}
           <motion.div
             className="absolute inset-0"
-            style={{
-              background: `radial-gradient(ellipse at 35% 50%, ${project.color}, transparent 65%)`,
-              opacity: 0.15,
-            }}
-            whileHover={{ opacity: 0.35 }}
+            style={{ background: `radial-gradient(ellipse at 30% 50%, ${project.color}, transparent 60%)`, opacity: 0.12 }}
+            whileHover={{ opacity: 0.3 }}
             transition={{ duration: 0.6 }}
           />
 
-          {/* Ambient corner glow */}
-          <div
-            className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-[0.07] blur-3xl pointer-events-none"
-            style={{ background: project.color }}
-          />
+          {/* Corner glow */}
+          <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-[0.06] blur-3xl pointer-events-none" style={{ background: project.color }} />
 
           {/* Center title watermark */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span
-              className="font-display font-bold opacity-[0.06] select-none"
-              style={{ color: project.color, fontSize: 'clamp(4rem, 12vw, 10rem)' }}
+              className="font-display font-bold opacity-[0.05] select-none"
+              style={{ color: project.color, fontSize: 'clamp(3rem, 10vw, 9rem)' }}
             >
               {project.title}
             </span>
           </div>
 
-          {/* Hover overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+          {/* Top bar: category + year */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 pt-6">
+            <span
+              className="font-body text-xs tracking-[0.3em] uppercase px-3 py-1.5 rounded-full border backdrop-blur-sm"
+              style={{ color: project.color, borderColor: `${project.color}40`, background: `${project.color}12` }}
+            >
+              {project.category}
+            </span>
+            <span className="font-display text-sm text-muted-foreground">{project.year}</span>
+          </div>
+
+          {/* Bottom info overlay — replaces external text */}
+          <div
+            className="absolute bottom-0 left-0 right-0 px-6 pb-6 pt-20"
+            style={{ background: `linear-gradient(to top, hsl(240 8% 6% / 0.95) 0%, hsl(240 8% 8% / 0.6) 60%, transparent 100%)` }}
+          >
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <h3
+                  className="font-display font-bold text-foreground leading-none mb-2"
+                  style={{ fontSize: 'clamp(1.8rem, 3.5vw, 3.2rem)' }}
+                >
+                  {project.title}
+                </h3>
+                <p
+                  className="font-body text-muted-foreground leading-relaxed max-w-lg"
+                  style={{ fontSize: 'clamp(0.75rem, 1vw, 0.9rem)' }}
+                >
+                  {project.description}
+                </p>
+              </div>
+
+              {/* Index */}
+              <div className="flex-shrink-0 text-right">
+                <span
+                  className="font-display font-bold opacity-25 leading-none block"
+                  style={{ color: project.color, fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="font-display text-muted-foreground text-xs tracking-widest opacity-50">
+                  / {String(total).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hover: view details overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500">
             <span className="font-display text-base tracking-[0.4em] uppercase text-primary border border-primary/30 px-8 py-3">
               View Details
             </span>
             <span className="font-body text-xs text-muted-foreground tracking-widest">Click to explore</span>
           </div>
 
-          {/* Category tag */}
-          <div className="absolute top-6 left-6">
-            <span
-              className="font-body text-xs tracking-[0.3em] uppercase px-3 py-1.5 rounded-full border"
-              style={{ color: project.color, borderColor: `${project.color}40`, background: `${project.color}10` }}
-            >
-              {project.category}
-            </span>
-          </div>
-
-          {/* Year */}
-          <div className="absolute top-6 right-6">
-            <span className="font-display text-sm text-muted-foreground">{project.year}</span>
-          </div>
-
-          {/* Arrow icon on hover */}
+          {/* Hover arrow */}
           <div className="absolute bottom-6 right-6 w-10 h-10 rounded-full border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-background/60 backdrop-blur-sm">
             <ArrowUpRight className="w-4 h-4 text-primary" />
           </div>
         </motion.div>
-
-        {/* Project info row */}
-        <div className="flex items-end justify-between gap-8 mt-8">
-          <div>
-            <h3
-              className="font-display font-bold text-foreground mb-3 leading-none cursor-pointer hover:opacity-70 transition-opacity duration-300"
-              style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}
-              onClick={() => onSelect(project)}
-            >
-              {project.title}
-            </h3>
-            <p className="font-body text-muted-foreground leading-relaxed max-w-xl" style={{ fontSize: 'clamp(0.85rem, 1.2vw, 1rem)' }}>
-              {project.description}
-            </p>
-          </div>
-
-          <div className="flex-shrink-0 text-right">
-            <span
-              className="font-display font-bold opacity-20 leading-none"
-              style={{ color: project.color, fontSize: 'clamp(3rem, 6vw, 5rem)' }}
-            >
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span className="font-display text-muted-foreground block text-xs tracking-widest opacity-50">
-              / {String(total).padStart(2, '0')}
-            </span>
-          </div>
-        </div>
       </motion.div>
     </motion.div>
   );
@@ -346,7 +338,7 @@ const ProjectsSection = () => {
           </motion.div>
 
           {/* Stacked cards */}
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 pt-24 pb-16">
             {projects.map((project, i) => (
               <ProjectCard
                 key={i}
@@ -360,7 +352,7 @@ const ProjectsSection = () => {
           </div>
 
           {/* Progress bar */}
-          <div className="absolute bottom-10 left-6 md:left-12 lg:left-24 right-6 md:right-12 lg:right-24 z-20">
+          <div className="absolute bottom-8 left-6 md:left-12 lg:left-24 right-6 md:right-12 lg:right-24 z-20">
             <div className="h-px bg-border">
               <motion.div
                 className="h-full bg-primary"
